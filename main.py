@@ -1,60 +1,32 @@
 import time
-import numpy
-import io
-import struct
+import multiprocessing
 
-import game
+import multi
 
 buffer_length = 4096
 
-last_game_over = None
-games_per_second = io.BytesIO()
+process_queue = multiprocessing.Queue()
 max_number = -1
 max_score = -1
+total_games = 0
 
 def clear_terminal():
     print("\033[H\033[J", end="")
 
-def get_average():
-    cursor_before = games_per_second.tell()
-    games_per_second.seek(0)
-
-    unpacked_array = []
-    while True:
-        read_bytes = games_per_second.read(4)
-        if (len(read_bytes) != 4):
-            break
-        unpacked_array.append(struct.unpack(">i",read_bytes))
-    
-    games_per_second.seek(cursor_before)
-    return numpy.average(unpacked_array)
-
-def swipe_circle():
-    current_game.swipe_up()
-    current_game.swipe_right()
-    current_game.swipe_down()
-    current_game.swipe_left()
-
+for process_id in range(multiprocessing.cpu_count() - 1):
+    new_process = multiprocessing.Process(
+        target = multi.new_game,
+        args = [process_queue]
+    )
+    new_process.start()
+start_time = time.time()
 while True:
-    current_game = game.game2048()
-    while True:
-        swipe_circle()
-        if (current_game.is_over()):
-            current_number = max(current_game.state.flatten())
-            max_number = max(max_number,current_number)
-            max_score = max(max_score,current_game.score)
-            break
-    current_time = time.time()
-    if (last_game_over):
-        games_per_second.write(struct.pack(">i",round(1 / (current_time - last_game_over))))
-        if (games_per_second.tell() == buffer_length):
-            games_per_second.seek(0)
-    last_game_over = current_time
+    while (not process_queue.empty()):
+        queue_item = process_queue.get()
+        max_number = max(queue_item["number"],max_number)
+        max_score = max(queue_item["score"],max_score)
+        total_games = (total_games + 1)
 
+    final_string = f"Games per second: {str(total_games / (time.time() - start_time))}\nMax number: {str(2 ** max_number)}\nMax score: {str(max_score)}\nTotal: {str(total_games)}"
     clear_terminal()
-    print(f"Games per second: {str(get_average())}")
-    print(f"Max number: {str(2 ** max_number)}")
-    print(f"Max score: {str(max_score)}")
-    print(f"Cursor: {str(games_per_second.tell())}")
-    print("----------")
-    current_game.print()
+    print(final_string)
