@@ -1,6 +1,7 @@
 import random
 import numpy
 import copy
+import time
 
 
 class game2048:
@@ -8,8 +9,10 @@ class game2048:
         self.resolution = resolution
         self.state = numpy.zeros((resolution,resolution),dtype = numpy.int8)
         self.score = 0
+        self.history = []
         for i in range(2):
             self._add_new()
+        self._add_marker()
 
     def _get_free_positions(self):
         free_positions = []
@@ -24,6 +27,12 @@ class game2048:
         if (free_positions == []):
             return
         self.state[random.choice(free_positions)] = numpy.random.choice([1,2],p = [0.75,0.25])
+
+    def _add_marker(self):
+        self.history.append({
+            "time": time.time(),
+            "state": self.state.copy()
+        })
 
     def is_over(self):
         start_state = copy.deepcopy(self.state)
@@ -45,6 +54,7 @@ class game2048:
         self.score = (self.score + score_diff)
         self.state = numpy.rot90(swiped_state,-1)
         self._add_new()
+        self._add_marker()
 
     def swipe_right(self):
         rotated_state = numpy.rot90(self.state,2)
@@ -52,6 +62,7 @@ class game2048:
         self.score = (self.score + score_diff)
         self.state = numpy.rot90(swiped_state,-2)
         self._add_new()
+        self._add_marker()
 
     def swipe_down(self):
         rotated_state = numpy.rot90(self.state,-1)
@@ -59,12 +70,14 @@ class game2048:
         self.score = (self.score + score_diff)
         self.state = numpy.rot90(swiped_state,1)
         self._add_new()
+        self._add_marker()
 
     def swipe_left(self):
         swiped_state,score_diff = _swipe(self.state)
         self.score = (self.score + score_diff)
         self.state = swiped_state
         self._add_new()
+        self._add_marker()
 
     def print(self):
         for row in self.state:
